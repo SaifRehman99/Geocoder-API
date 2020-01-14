@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+
+
+    <script src='https://api.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v1.4.1/mapbox-gl.css' rel='stylesheet' />
+
+
+    <title>Document</title>
+</head>
+
+<body>
+    <style>
+        .mapboxgl-popup {
+            max-width: 400px;
+            font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        }
+    </style>
+    <h1>Map</h1>
+    <div id='map' style='width: 100%; height: 800px;'></div>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1Ijoic2FpZnJlaG1hbiIsImEiOiJjazVheXEyNHAwbm54M2pwZGlta2ZoeThuIn0.Ny1CVEA3witXnaIwbvA6tg';
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [67.1050046, 24.9129915], //longitude,latitiude
+            zoom: 11,
+        });
+
+        async function getLocation() {
+            const loc = await fetch('http://localhost:1200/api/locations');
+            const data = await loc.json();
+
+
+            const location = data.data.map(loc => {
+
+                return {
+
+                    properties: {
+                        storeID: loc.locationID,
+                        icon: 'shop',
+                        description: loc.location.locationAddress,
+                    },
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [loc.location.coordinates[1], loc.location.coordinates[0]]
+                    }
+
+                }
+
+
+            });
+            loadMap(location)
+        }
+
+
+        function loadMap(loc) {
+            map.on('load', function() {
+                map.addLayer({
+                    id: 'places',
+                    type: 'symbol',
+                    source: {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: loc
+                        }
+                    },
+                    layout: {
+                        'icon-image': '{icon}-15',
+                        'icon-size': 1.5,
+                        'text-field': '{storeID}',
+                        'text-font': ['Open Sans Semibold'],
+                        'text-offset': [0, 0.9],
+                        'text-anchor': 'top'
+                    }
+                });
+            });
+
+            // When a click event occurs on a feature in the places layer, open a popup at the
+            // location of the feature, with description HTML from its properties.
+            map.on('click', 'places', function(e) {
+                var coordinates = e.features[0].geometry.coordinates.slice();
+                var description = e.features[0].properties.description;
+
+                // Ensure that if the map is zoomed out such that multiple
+                // copies of the feature are visible, the popup appears
+                // over the copy being pointed to.
+                while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                }
+
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(description)
+                    .addTo(map);
+            });
+
+            // Change the cursor to a pointer when the mouse is over the places layer.
+            map.on('mouseenter', 'places', function() {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            // Change it back to a pointer when it leaves.
+            map.on('mouseleave', 'places', function() {
+                map.getCanvas().style.cursor = '';
+            });
+
+
+        }
+        getLocation()
+    </script>
+
+</body>
+
+</html>
